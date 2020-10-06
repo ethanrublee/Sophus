@@ -131,6 +131,7 @@ bool test(Sophus::SE3d const& T_w_targ, Sophus::SE3d const& T_w_init,
   ceres::Solver::Options options;
   options.gradient_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
   options.function_tolerance = 0.01 * Sophus::Constants<double>::epsilon();
+
   options.linear_solver_type = ceres::DENSE_QR;
 
   // Solve
