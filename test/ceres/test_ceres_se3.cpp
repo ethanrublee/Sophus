@@ -93,9 +93,10 @@ bool test(Sophus::SE3d const& T_w_targ, Sophus::SE3d const& T_w_init,
   // Build the problem.
   ceres::Problem problem;
 
+  auto local_parameterization = new Sophus::test::LocalParameterizationSE3;
   // Specify local update rule for our parameter
   problem.AddParameterBlock(T_wr.data(), Sophus::SE3d::num_parameters,
-                            new Sophus::test::LocalParameterizationSE3);
+                            local_parameterization);
 
   // Create and add cost functions. Derivatives will be evaluated via
   // automatic differentiation
@@ -104,6 +105,21 @@ bool test(Sophus::SE3d const& T_w_targ, Sophus::SE3d const& T_w_init,
                                       Sophus::SE3d::num_parameters>(
           new TestSE3CostFunctor(T_w_targ.inverse()));
   problem.AddResidualBlock(cost_function1, NULL, T_wr.data());
+
+  ceres::NumericDiffOptions numeric_diff_options;
+
+  std::vector<const ceres::LocalParameterization*> local_parameterizations;
+  local_parameterizations.push_back(local_parameterization);
+  std::vector<double*> parameter_blocks;
+  parameter_blocks.push_back(T_wr.data());
+
+  ceres::GradientChecker gradient_checker(
+      cost_function1, &local_parameterizations, numeric_diff_options);
+  ceres::GradientChecker::ProbeResults results;
+  if (!gradient_checker.Probe(parameter_blocks.data(), 1e-9, &results)) {
+    std::cerr << "An error has occurred:\n" << results.error_log;
+  }
+
   ceres::CostFunction* cost_function2 =
       new ceres::AutoDiffCostFunction<TestPointCostFunctor, kNumPointParameters,
                                       Sophus::SE3d::num_parameters,
